@@ -2,4 +2,4 @@
   import Terminal from './svelte/Terminal.svelte'
 </script>
 
-<Terminal rows={24} cols={36}/>
+<Terminal rows={32} cols={32}/>

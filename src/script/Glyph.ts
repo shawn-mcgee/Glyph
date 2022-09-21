@@ -1,7 +1,7 @@
-
-
-
-export const LOOKUP = {
+export const SRC   : string = 'src/assets/kenney_nl_1bit_monochrome_transparent_packed.png'
+export const SRC_W : number = 16;
+export const SRC_H : number = 16;
+export const SRC_TABLE = {
     '0' : {x: 35, y: 17},
     '1' : {x: 36, y: 17},
     '2' : {x: 37, y: 17},
@@ -41,4 +41,6 @@ export const LOOKUP = {
     'x' : {x: 45, y: 19}, 'X' : {x: 45, y: 19},
     'y' : {x: 46, y: 19}, 'Y' : {x: 46, y: 19},
     'z' : {x: 47, y: 19}, 'Z' : {x: 47, y: 19},
+
+    'CURSOR' : {x: 26, y: 13}
 }
