@@ -1,100 +1,83 @@
+<script lang='ts' context='module'>
+    export const DEFAULT_GLYPHS : string = './kenney_nl_1bit_mono.json'
+    // default buffer region
+    export const DEFAULT_BUFFER_INDEX_0 : number = -1
+    export const DEFAULT_BUFFER_INDEX_1 : number = -1
+    // default screen region
+    export const DEFAULT_ROW_0 : number = -1
+    export const DEFAULT_COL_0 : number = -1
+    export const DEFAULT_ROW_1 : number = -1
+    export const DEFAULT_COL_1 : number = -1
+    // default where region    
+    export const DEFAULT_WHERE = {
+        // buffer region
+        b0 : DEFAULT_BUFFER_INDEX_0,
+        b1 : DEFAULT_BUFFER_INDEX_1,
+        // screen region
+        i0 : DEFAULT_ROW_0, j0 : DEFAULT_COL_0,
+        i1 : DEFAULT_ROW_1, j1 : DEFAULT_COL_1,
+    }
+
+    // op
+    export const CLEAR : number = 0x1
+    export const WRITE : number = 0x2
+    export const PAINT : number = 0x4
+</script>
 <script lang='ts'>
-    import { onDestroy, onMount } from 'svelte'
-    import { dataset_dev } from 'svelte/internal';
-    import * as GLYPH from '../script/Glyph'
+    import { createEventDispatcher, onMount } from 'svelte'
+    import * as Glyphs from '../script/Glyphs'    
 
-    /** Configurable location of source atlas, expected to be a path or url string. */
-    export let glyph_src   : string = GLYPH.SRC
-    /** Configurable  width of all symbols on the source atlas in pixels, expected to be a positive, non-zero integer.*/
-    export let glyph_src_w : number = GLYPH.SRC_W
-    /** Configurable height of all symbols on the source atlas in pixels, expected to be a positive, non-zero integer.*/
-    export let glyph_src_h : number = GLYPH.SRC_H
-    /** Configurable  width of all symbols on the canvas in pixels, expected to be a positive, non-zero integer.*/
-    export let glyph_dst_w : number = 32
-    /** Configurable height of all symbols on the canvas in pixels, expected to be a positive, non-zero integer.*/
-    export let glyph_dst_h : number = 32
-    /** Used for locating symbols within the source atlas.*/
-    export let glyph_src_table = GLYPH.SRC_TABLE
+    export let rows    : number;
+    export let cols    : number;
+    export let glyph_w : number = 32;
+    export let glyph_h : number = 32;
 
-    export let rows : number;
-    export let cols : number;
+    const _dispatch = createEventDispatcher()
+    
 
+    // svelte bind:this={_canvas}
     let _canvas
-    let _glyphs
-    let _cursor
 
     let _buffer
+    let _cursor
+    let _glyphs
 
     let _context : CanvasRenderingContext2D
 
     onMount(async () => {
-        _buffer = [ ]
-        for(let i = 0; i < rows * cols; i ++)
-            _buffer.push({ })
+        init_context()
+        init_buffer()
+        init_cursor()
+        init_glyphs()
+        use(await Glyphs.load(DEFAULT_GLYPHS))
 
-        _cursor = 0
-
-        _glyphs = await new Promise<HTMLImageElement>(resolve => {
-            const image : HTMLImageElement = new Image();
-            image.addEventListener('load', () => {
-                resolve(image)
-            })
-            image.src = glyph_src
-        })
-
-        _context = _canvas.getContext('2d')
-        _canvas.width  = cols * glyph_dst_w
-        _canvas.height = rows * glyph_dst_h
-        _context.imageSmoothingEnabled = false
-
-        window.addEventListener   ('keydown', _onKeyDown)
-
-        paint({i0:22, j0:22}, [
-            {glyph:'w'}, {glyph:'a'}, {glyph:'l'}, {glyph:'l'}, {glyph:'a'}, {glyph:' '},
-            {glyph:'w'}, {glyph:'a'}, {glyph:'l'}, {glyph:'l'}, {glyph:'a'}, {glyph:' '},
-            {glyph:'b'}, {glyph:'i'}, {glyph:'n'}, {glyph:'g'}, {glyph:' '},
-            {glyph:'b'}, {glyph:'a'}, {glyph:'n'}, {glyph:'g'}, {glyph:' '},
-        ])
+        _dispatch('ready')
     })
 
-    onDestroy(() => {
-        window.removeEventListener('keydown', _onKeyDown)
-    })
-
-    export const CLEAR_BUFFER : number = 0x1
-    export const WRITE_BUFFER : number = 0x2
-
-    export const CLEAR_SCREEN : number = 0x4
-    export const PAINT_SCREEN : number = 0x8
-    
-    export const CLEAR : number = CLEAR_BUFFER | CLEAR_SCREEN
-
-    // screen region
-    export const _WHERE_I0 : number = -1
-    export const _WHERE_J0 : number = -1
-    export const _WHERE_I1 : number = -1
-    export const _WHERE_J1 : number = -1
-    // buffer region
-    export const _WHERE_B0 : number = -1
-    export const _WHERE_B1 : number = -1
-    export const _WHERE = {
-        // screen region
-        i0 : _WHERE_I0, j0 : _WHERE_J0,
-        i1 : _WHERE_I1, j1 : _WHERE_J1,
-        // buffer region
-        b0 : _WHERE_B0, b1 : _WHERE_B1
+    export function use(glyphs) {
+        for(let glyph in glyphs.table) {
+            const where = glyphs.table[glyph]
+            _glyphs.table[glyph] = [
+                _glyphs.atlas.length,
+                glyphs.w,
+                glyphs.h,
+                glyphs.table[glyph][0],
+                glyphs.table[glyph][1],
+            ]
+        }
+        _glyphs.atlas.push(glyphs.atlas)
     }
 
-    export function write(where:any = { }, buffer:any[] = [     ]) {
-        update(CLEAR_BUFFER | WRITE_BUFFER, where, buffer)
+    export function write(where:any = { }, buffer:Array<any> = [     ]) {
+        update(CLEAR | WRITE, where, buffer)
     }
 
-    export function paint(where:any = { }, buffer:any[] = _buffer) {
-        update(CLEAR_SCREEN | PAINT_SCREEN, where, buffer)
+    export function paint(where:any = { }, buffer:Array<any> = _buffer) {
+        update(CLEAR | PAINT, where, buffer)
     }
 
-    export function update(how : number, where : any, buffer : Array<any>) {
-        where = { ..._WHERE, ...where }
+    export function update(mask : number, where : any, buffer : Array<any>) {
+        where = { ...DEFAULT_WHERE, ...where }
 
         if(
             where.i0 < 0 && where.j0 < 0 &&
@@ -106,7 +89,7 @@
                 n = b1 - b0;
 
             for(let i = 0; i < n; i ++)
-                _update(how, b0 + i, i < buffer.length ? buffer[i] : { })
+                _update(mask, b0 + i, i < buffer.length ? buffer[i] : { })
 
         } else {
             const
@@ -123,101 +106,99 @@
                     const
                         _i =  Math.floor(i / w) + i0,
                         _j =  Math.floor(i % w) + j0
-                    _update(how, _i * cols + _j, i < buffer.length ? buffer[i] : { })
+                    _update(mask, _i * cols + _j, i < buffer.length ? buffer[i] : { })
                 }
         }
     }
 
-    function _update(how, cursor, symbol) {
-        if(how & CLEAR_BUFFER)
+    function init_context() {
+        _context = _canvas.getContext('2d')
+        _canvas.width  = cols * glyph_w
+        _canvas.height = rows * glyph_h
+        _context.imageSmoothingEnabled = false
+    }
+
+    function init_buffer() {
+        _buffer = [ ]
+        const n = rows * cols
+        for(let i = 0; i < n; i ++)
+            _buffer[i] = { }
+    }
+
+    function init_cursor() {
+        _cursor = 0
+    }
+
+    function init_glyphs() {
+        _glyphs = {
+            atlas: [ ],
+            table: { }
+        }
+    }
+
+    function _update(mask, cursor, symbol) {
+        if(mask & (CLEAR | WRITE))
             _buffer[cursor] = {    }
-        if(how & WRITE_BUFFER)
+        if(mask &          WRITE )
             _buffer[cursor] = symbol
 
         const
             i = Math.floor(cursor / cols),
             j = Math.floor(cursor % cols),
-            glyph_dst_x : number = j * glyph_dst_w,
-            glyph_dst_y : number = i * glyph_dst_h;
-        if(how & CLEAR_SCREEN)
+            glyph_x : number = j * glyph_w,
+            glyph_y : number = i * glyph_h;
+        if(mask & (CLEAR | PAINT))
             _context.clearRect(
-                glyph_dst_x, glyph_dst_y,
-                glyph_dst_w, glyph_dst_h
+                glyph_x, glyph_y,
+                glyph_w, glyph_h
             )
-
-        // symbol has a
-        if(how & PAINT_SCREEN) {
+            
+        if(mask &          PAINT ) {
             const 
                 glyph = symbol['glyph'],
                 color = symbol['color'],
-                src = glyph_src_table[glyph]
-            if(!src) return;
+                where = _glyphs.table[glyph];
+            // no image for glyph
+            if(!where) {
+                if(glyph) console.error('missing glyph!');
+                return;
+            }
+            // TODO: FIX THESE MAGIC CONSTANTS
             const
-                glyph_src_x : number = src.x * glyph_src_w,
-                glyph_src_y : number = src.y * glyph_src_h;
-
+                glyph_src_atlas : number = where[0],
+                glyph_src_w     : number = where[1],
+                glyph_src_h     : number = where[2],
+                glyph_src_x     : number = where[3] * glyph_src_w,
+                glyph_src_y     : number = where[4] * glyph_src_h;
             _context.drawImage(
-                _glyphs, 
-                glyph_src_x, glyph_src_y, glyph_src_w, glyph_src_h,
-                glyph_dst_x, glyph_dst_y, glyph_dst_w, glyph_dst_h
+                _glyphs.atlas[glyph_src_atlas],
+
+                glyph_src_x, glyph_src_y, 
+                glyph_src_w, glyph_src_h,
+
+                glyph_x, glyph_y, 
+                glyph_w, glyph_h
             )
             if(color) {
                 _context.save()                
 
                 _context.beginPath()
                 _context.rect(
-                    glyph_dst_x, glyph_dst_y,
-                    glyph_dst_w, glyph_dst_h
+                    glyph_x, glyph_y,
+                    glyph_w, glyph_h
                 )
                 _context.clip()
 
                 _context.globalCompositeOperation='source-in'
                 _context.fillStyle=`${color}`
                 _context.fillRect(
-                    glyph_dst_x, glyph_dst_y,
-                    glyph_dst_w, glyph_dst_h
+                    glyph_x, glyph_y,
+                    glyph_w, glyph_h
                 )
                 _context.globalCompositeOperation='source-over'
 
                 _context.restore()
             }
-        }
-    }
-
-    const NUMBER    : string = '0123456789'
-    const LOWERCASE : string = 'abcdefghijklmnopqrstuvwxyz'
-    const UPPERCASE : string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    const WHITESPACE: string = ' '
-
-    function _isNumber(n : string) : boolean {
-        return NUMBER.includes(n)
-    }
-
-    function _isLetter(l : string) : boolean {
-        return (
-            LOWERCASE.includes(l) ||
-            UPPERCASE.includes(l) );
-    }
-
-    function _isWhitespace(w : string) : boolean {
-        return WHITESPACE.includes(w);
-    }
-
-    function _onKeyDown(event) {
-        if(
-            event.ctrlKey ||
-            event.altKey
-        ) return;
-        if(
-            _isLetter(event.key) ||
-            _isNumber(event.key) ||
-            _isWhitespace(event.key)
-        ) {
-            update(WRITE_BUFFER, {b0: _cursor ++}, [{glyph: event.key, color:'#f88'}])
-            paint({b0:0})
-        } else if(event.key === 'Backspace'){
-            if(_cursor > 0)
-                update(CLEAR_BUFFER | CLEAR_SCREEN, { b0: -- _cursor}, [ ])
         }
     }
 </script>
