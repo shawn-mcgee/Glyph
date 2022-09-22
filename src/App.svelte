@@ -21,8 +21,6 @@
       ]
     )
   }
-
-  
 </script>
 
 <Terminal rows={32} cols={32} bind:this={_terminal} on:ready={_onReady}/>

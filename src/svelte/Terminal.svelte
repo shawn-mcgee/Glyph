@@ -68,6 +68,17 @@
         _glyphs.atlas.push(glyphs.atlas)
     }
 
+    export function cursor(a ?: number, b ?: number) : number {
+        if(a !== undefined && b === undefined)
+            _cursor = Math.min(Math.max(a, 0), _buffer.length)
+        if(a !== undefined && b !== undefined) {
+            a = Math.min(Math.max(a, 0), rows)
+            b = Math.min(Math.max(b, 0), cols)
+            _cursor = a * cols + b
+        }
+        return _cursor
+    }
+
     export function write(where:any = { }, buffer:Array<any> = [     ]) {
         update(CLEAR | WRITE, where, buffer)
     }
@@ -152,7 +163,7 @@
                 glyph_x, glyph_y,
                 glyph_w, glyph_h
             )
-            
+
         if(mask &          PAINT ) {
             const 
                 glyph = symbol['glyph'],
