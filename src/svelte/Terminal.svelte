@@ -33,7 +33,6 @@
     export let glyph_h : number = 32;
 
     const _dispatch = createEventDispatcher()
-    
 
     // svelte bind:this={_canvas}
     let _canvas
@@ -55,17 +54,11 @@
     })
 
     export function use(glyphs) {
-        for(let glyph in glyphs.table) {
-            const where = glyphs.table[glyph]
-            _glyphs.table[glyph] = [
-                _glyphs.atlas.length,
-                glyphs.w,
-                glyphs.h,
-                glyphs.table[glyph][0],
-                glyphs.table[glyph][1],
-            ]
-        }
-        _glyphs.atlas.push(glyphs.atlas)
+        Glyphs.merge(_glyphs, glyphs)
+    }
+
+    export function s2g(s) {
+        return Glyphs.s2g(_glyphs, s)
     }
 
     export function cursor(a ?: number, b ?: number) : number {
@@ -87,7 +80,7 @@
         update(CLEAR | PAINT, where, buffer)
     }
 
-    export function update(mask : number, where : any, buffer : Array<any>) {
+    export function update(op : number, where : any, buffer : Array<any>) {
         where = { ...DEFAULT_WHERE, ...where }
 
         if(
@@ -100,7 +93,7 @@
                 n = b1 - b0;
 
             for(let i = 0; i < n; i ++)
-                _update(mask, b0 + i, i < buffer.length ? buffer[i] : { })
+                _update(op, b0 + i, i < buffer.length ? buffer[i] : { })
 
         } else {
             const
@@ -117,7 +110,7 @@
                     const
                         _i =  Math.floor(i / w) + i0,
                         _j =  Math.floor(i % w) + j0
-                    _update(mask, _i * cols + _j, i < buffer.length ? buffer[i] : { })
+                    _update(op, _i * cols + _j, i < buffer.length ? buffer[i] : { })
                 }
         }
     }
@@ -147,10 +140,10 @@
         }
     }
 
-    function _update(mask, cursor, symbol) {
-        if(mask & (CLEAR | WRITE))
+    function _update(op, cursor, symbol) {
+        if(op & (CLEAR | WRITE))
             _buffer[cursor] = {    }
-        if(mask &          WRITE )
+        if(op &          WRITE )
             _buffer[cursor] = symbol
 
         const
@@ -158,29 +151,29 @@
             j = Math.floor(cursor % cols),
             glyph_x : number = j * glyph_w,
             glyph_y : number = i * glyph_h;
-        if(mask & (CLEAR | PAINT))
+        if(op & (CLEAR | PAINT))
             _context.clearRect(
                 glyph_x, glyph_y,
                 glyph_w, glyph_h
             )
 
-        if(mask &          PAINT ) {
+        if(op &          PAINT ) {
             const 
                 glyph = symbol['glyph'],
                 color = symbol['color'],
                 where = _glyphs.table[glyph];
             // no image for glyph
             if(!where) {
-                if(glyph) console.error('missing glyph!');
+                if(glyph !== undefined) 
+                    console.error(`missing glyph '${glyph}'!`);
                 return;
             }
-            // TODO: FIX THESE MAGIC CONSTANTS
             const
-                glyph_src_atlas : number = where[0],
-                glyph_src_w     : number = where[1],
-                glyph_src_h     : number = where[2],
-                glyph_src_x     : number = where[3] * glyph_src_w,
-                glyph_src_y     : number = where[4] * glyph_src_h;
+                glyph_src_atlas : number = where.atlas,
+                glyph_src_w     : number = where.w,
+                glyph_src_h     : number = where.h,
+                glyph_src_x     : number = where.x * glyph_src_w,
+                glyph_src_y     : number = where.y * glyph_src_h;
             _context.drawImage(
                 _glyphs.atlas[glyph_src_atlas],
 
@@ -191,7 +184,7 @@
                 glyph_w, glyph_h
             )
             if(color) {
-                _context.save()                
+                _context.save()
 
                 _context.beginPath()
                 _context.rect(
@@ -201,7 +194,7 @@
                 _context.clip()
 
                 _context.globalCompositeOperation='source-in'
-                _context.fillStyle=`${color}`
+                _context.fillStyle=color
                 _context.fillRect(
                     glyph_x, glyph_y,
                     glyph_w, glyph_h
