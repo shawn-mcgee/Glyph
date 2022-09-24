@@ -31,7 +31,7 @@ export function s2g(lookup, s) {
     return _.reduce([...s], (b, g) => {
         g = g.toUpperCase()
         if(lookup.table[g])
-            b.push({glyph: g})
+            b.push({glyph: g, flip: true, color:'#f88'})
         return b
     }, [ ])
 }

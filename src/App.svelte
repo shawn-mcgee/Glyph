@@ -21,6 +21,7 @@
     //   ]
     // )
 
+    _terminal.cursor(22, 26)
     _terminal.paint({}, _terminal.s2g("Hello World"))
   }
 </script>

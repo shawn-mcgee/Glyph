@@ -161,6 +161,8 @@
             const 
                 glyph = symbol['glyph'],
                 color = symbol['color'],
+                flip  = symbol['flip'],
+                flop  = symbol['flop'],
                 where = _glyphs.table[glyph];
             // no image for glyph
             if(!where) {
@@ -168,21 +170,33 @@
                     console.error(`missing glyph '${glyph}'!`);
                 return;
             }
+            console.log(flop)
             const
                 glyph_src_atlas : number = where.atlas,
                 glyph_src_w     : number = where.w,
                 glyph_src_h     : number = where.h,
                 glyph_src_x     : number = where.x * glyph_src_w,
-                glyph_src_y     : number = where.y * glyph_src_h;
+                glyph_src_y     : number = where.y * glyph_src_h
+
+            _context.save()
+            _context.translate(
+                glyph_x + (flip ? glyph_w : 0),
+                glyph_y + (flop ? glyph_h : 0)
+            )
+            _context.scale(
+                flip ? -1 : 1,
+                flop ? -1 : 1
+            )
             _context.drawImage(
                 _glyphs.atlas[glyph_src_atlas],
 
                 glyph_src_x, glyph_src_y, 
                 glyph_src_w, glyph_src_h,
 
-                glyph_x, glyph_y, 
+                0      , 0      ,
                 glyph_w, glyph_h
             )
+            _context.restore()
             if(color) {
                 _context.save()
 
@@ -200,7 +214,7 @@
                     glyph_w, glyph_h
                 )
                 _context.globalCompositeOperation='source-over'
-
+                
                 _context.restore()
             }
         }
